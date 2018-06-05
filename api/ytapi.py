@@ -7,14 +7,9 @@ import api.utils as utl
 from requests_oauthlib import OAuth2Session
 
 config_path = utl.config_path
-base_url = 'https://www.googleapis.com/youtube/v3/search?part=snippet'
-"""
-def_metrics = ['sessions', 'goal1Completions', 'goal2Completions', 'users',
-               'newUsers', 'bounces', 'pageviews', 'totalEvents',
-               'uniqueEvents']
-def_dims = ['date', 'campaign', 'source', 'medium', 'keyword',
-            'adContent', 'country']
-"""
+search_base_url = 'https://www.googleapis.com/youtube/v3/search?part=snippet'
+vid_base_url = ('https://www.googleapis.com/youtube/v3/videos?'
+                'part=snippet,statistics')
 
 
 class YtApi(object):
@@ -38,7 +33,7 @@ class YtApi(object):
             logging.warning('Config file name not in vendor matrix.  ' +
                             'Aborting.')
             sys.exit(0)
-        logging.info('Loading GA config file: ' + str(config))
+        logging.info('Loading YT config file: ' + str(config))
         self.config_file = config_path + config
         self.load_config()
         self.check_config()
@@ -77,6 +72,11 @@ class YtApi(object):
         token = self.client.refresh_token(token_url=self.refresh_url, **extra)
         self.client = OAuth2Session(self.client_id, token=token)
 
+    def make_request(self, url):
+        self.get_client()
+        self.r = self.client.get(url)
+        return self.r
+
     @staticmethod
     def date_check(date):
         if str(date) == 'nan':
@@ -95,7 +95,7 @@ class YtApi(object):
         return sd, ed
 
     @staticmethod
-    def create_url(query, sd, ed):
+    def create_search_url(query, sd, ed, base_url=search_base_url):
         max_url = '&maxResults=50'
         type_url = '&type=video'
         query_url = '&q={}'.format(query)
@@ -108,23 +108,44 @@ class YtApi(object):
             full_url += ed_url
         return full_url
 
+    @staticmethod
+    def create_vid_url(vid_ids, base_url=vid_base_url):
+        vid_url = '&id={}'.format(','.join(vid_ids))
+        full_url = base_url + vid_url
+        return full_url
+
     def get_data(self, sd=None, ed=None, query=None):
         sd, ed = self.get_data_default_check(sd, ed)
-        self.get_client()
         self.get_raw_data(query, sd, ed)
         return self.df
 
     def get_raw_data(self, query, sd, ed):
-        full_url = self.create_url(query, sd, ed)
-        self.r = self.client.get(full_url)
-        tdf = self.data_to_df(self.r)
+        vid_ids = self.get_vid_ids(query, sd, ed)
+        tdf = self.get_vid_df(vid_ids)
         tdf['query'] = query
         self.df = self.df.append(tdf)
 
+    def get_vid_ids(self, query, sd, ed):
+        full_url = self.create_search_url(query, sd, ed)
+        self.r = self.make_request(full_url)
+        df = self.data_to_df(self.r, 'items', ['snippet', 'id'])
+        vid_ids = list(df['videoId'])
+        return vid_ids
+
+    def get_vid_df(self, vid_ids):
+        full_url = self.create_vid_url(vid_ids)
+        self.r = self.make_request(full_url)
+        df = self.data_to_df(self.r, 'items', ['statistics', 'snippet'])
+        return df
+
     @staticmethod
-    def data_to_df(r):
-        df = pd.DataFrame(r.json()['items'])
-        df = df.join(pd.DataFrame(list(df['snippet'])))
-        df = df.join(pd.DataFrame(list(df['id'])))
-        df.drop(['snippet', 'id'], inplace=True)
+    def data_to_df(r, main_key, nested_fields):
+        df = pd.DataFrame(r.json()[main_key])
+        for col in nested_fields:
+            tdf = pd.DataFrame(list(df[col]))
+            drop_cols = [x for x in df.columns if x in tdf.columns]
+            if drop_cols:
+                df.drop(drop_cols, axis=1, inplace=True)
+            df = df.join(tdf)
+            df.drop([col], axis=1, inplace=True)
         return df

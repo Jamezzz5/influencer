@@ -26,7 +26,16 @@ class Config(object):
             tdf = api.get_data(sd=v[self.sd], ed=v[self.ed],
                                query=v[self.query])
             self.df = self.df.append(tdf).reset_index(drop=True)
-        self.write_df()
+        utl.write_df(self.df, 'raw_videos.xlsx')
+        df = self.filter_by_sponsored_videos('sponsored_videos.xlsx', self.df)
+        utl.write_df(df, 'sponsored_videos.xlsx')
 
-    def write_df(self):
-        self.df.to_excel('raw_videos.xlsx', index=False)
+    @staticmethod
+    def filter_by_sponsored_videos(raw_file=None, df=None):
+        if raw_file:
+            df = pd.read_excel(raw_file)
+        df = df[~df['id'].duplicated()]
+        filter_cols = ['description', 'title']
+        df = utl.df_filter_by_word(df, filter_cols, 'sponsored')
+        df = utl.df_filter_by_word(df, filter_cols, 'not sponsored', True)
+        return df

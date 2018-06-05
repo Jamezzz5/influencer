@@ -1,6 +1,7 @@
 import sys
 import logging
 import api.config as cfg
+import api.utils as utl
 
 formatter = logging.Formatter('%(asctime)s [%(module)14s]' +
                               '[%(levelname)8s] %(message)s')
@@ -30,6 +31,8 @@ sys.excepthook = handle_exception
 def main():
     config = cfg.Config()
     config.do_all_jobs()
+    df = utl.filter_by_sponsored_videos('raw_videos.xlsx')
+    df.to_excel('sponsored_videos.xlsx', index=False)
 
 
 if __name__ == '__main__':
