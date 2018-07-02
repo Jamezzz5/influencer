@@ -10,6 +10,8 @@ config_path = utl.config_path
 search_base_url = 'https://www.googleapis.com/youtube/v3/search?part=snippet'
 vid_base_url = ('https://www.googleapis.com/youtube/v3/videos?'
                 'part=snippet,statistics')
+channel_base_url = ('https://www.googleapis.com/youtube/v3/channels?'
+                    'part=snippet%2CcontentDetails%2Cstatistics')
 
 
 class YtApi(object):
@@ -33,7 +35,7 @@ class YtApi(object):
             logging.warning('Config file name not in vendor matrix.  ' +
                             'Aborting.')
             sys.exit(0)
-        logging.info('Loading YT config file: ' + str(config))
+        logging.info('Loading YT config file: {}'.format(config))
         self.config_file = config_path + config
         self.load_config()
         self.check_config()
@@ -44,7 +46,7 @@ class YtApi(object):
             with open(self.config_file, 'r') as f:
                 self.config = json.load(f)
         except IOError:
-            logging.error(self.config_file + ' not found.  Aborting.')
+            logging.error('{} not found.  Aborting.'.format(self.config_file))
             sys.exit(0)
         self.client_id = self.config['client_id']
         self.client_secret = self.config['client_secret']
@@ -57,7 +59,8 @@ class YtApi(object):
     def check_config(self):
         for item in self.config_list:
             if item == '':
-                logging.warning(item + 'not in GA config file.  Aborting.')
+                logging.warning('{} not in YT config file.'
+                                'Aborting.'.format(item))
                 sys.exit(0)
 
     def get_client(self):
@@ -109,19 +112,19 @@ class YtApi(object):
         return full_url
 
     @staticmethod
-    def create_vid_url(vid_ids, base_url=vid_base_url):
-        vid_url = '&id={}'.format(','.join(vid_ids))
+    def create_yt_url(ids, base_url=vid_base_url):
+        vid_url = '&id={}'.format(','.join(ids))
         full_url = base_url + vid_url
         return full_url
 
-    def get_data(self, sd=None, ed=None, query=None):
+    def get_video_data(self, sd=None, ed=None, query=None):
         sd, ed = self.get_data_default_check(sd, ed)
-        self.get_raw_data(query, sd, ed)
+        self.get_raw_video_data(query, sd, ed)
         return self.df
 
-    def get_raw_data(self, query, sd, ed):
+    def get_raw_video_data(self, query, sd, ed):
         vid_ids = self.get_vid_ids(query, sd, ed)
-        tdf = self.get_vid_df(vid_ids)
+        tdf = self.make_request_get_df(vid_ids, vid_base_url)
         tdf['query'] = query
         self.df = self.df.append(tdf)
 
@@ -132,15 +135,21 @@ class YtApi(object):
         vid_ids = list(df['videoId'])
         return vid_ids
 
-    def get_vid_df(self, vid_ids):
-        full_url = self.create_vid_url(vid_ids)
+    def make_request_get_df(self, ids, base_url):
+        full_url = self.create_yt_url(ids, base_url)
         self.r = self.make_request(full_url)
         df = self.data_to_df(self.r, 'items', ['statistics', 'snippet'])
         return df
 
+    def get_channel_data(self, cids):
+        self.df = pd.DataFrame()
+        self.df = self.make_request_get_df(cids, channel_base_url)
+        return self.df
+
     @staticmethod
     def data_to_df(r, main_key, nested_fields):
-        df = pd.DataFrame(r.json()[main_key])
+        data = r.json()[main_key]
+        df = pd.DataFrame(data)
         for col in nested_fields:
             tdf = pd.DataFrame(list(df[col]))
             drop_cols = [x for x in df.columns if x in tdf.columns]

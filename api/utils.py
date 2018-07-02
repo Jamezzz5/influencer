@@ -1,7 +1,10 @@
+import os
 config_path = 'config/'
 
 
-def write_df(df, file_name):
+def write_df(df, file_name, file_path=None):
+    if file_path:
+        full_file
     df.to_excel(file_name, index=False)
 
 
