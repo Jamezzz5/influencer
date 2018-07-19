@@ -1,6 +1,8 @@
 import sys
 import logging
-import api.config as cfg
+import argparse
+import influencer.config as cfg
+import influencer.export as exp
 
 formatter = logging.Formatter('%(asctime)s [%(module)14s]' +
                               '[%(levelname)8s] %(message)s')
@@ -26,10 +28,19 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_exception
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--nopull', action='store_true')
+parser.add_argument('--exp', choices=['all', 'db', 'ftp'])
+args = parser.parse_args()
+
 
 def main():
-    config = cfg.Config()
-    config.do_all_jobs()
+    if not args.nopull:
+        config = cfg.Config()
+        config.do_all_jobs()
+    if args.exp:
+        exp_class = exp.ExportHandler()
+        exp_class.export_loop(args.exp)
 
 
 if __name__ == '__main__':

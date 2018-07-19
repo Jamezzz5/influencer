@@ -3,7 +3,7 @@ import json
 import logging
 import datetime as dt
 import pandas as pd
-import api.utils as utl
+import influencer.utils as utl
 from requests_oauthlib import OAuth2Session
 
 config_path = utl.config_path

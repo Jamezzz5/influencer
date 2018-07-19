@@ -1,7 +1,8 @@
 import logging
 import pandas as pd
-import api.utils as utl
-import api.ytapi as ytapi
+import datetime as dt
+import influencer.utils as utl
+import influencer.ytapi as ytapi
 
 
 config_path = utl.config_path
@@ -9,7 +10,7 @@ config_path = utl.config_path
 
 class Config(object):
     def __init__(self, config_file='config.xlsx'):
-        logging.info('Initalizing config file {}'.format(config_file))
+        logging.info('Initializing config file {}'.format(config_file))
         self.sd = 'StartDate'
         self.ed = 'EndDate'
         self.query = 'Query'
@@ -36,6 +37,7 @@ class Config(object):
             self.df = self.df.append(tdf).reset_index(drop=True)
         utl.write_df(self.df, 'raw_videos.xlsx')
         self.df = self.filter_by_sponsored_videos('raw_videos.xlsx', self.df)
+        self.df['videoeventdate'] = dt.datetime.today().date()
         utl.write_df(self.df, 'sponsored_videos.xlsx')
         return self.df
 
@@ -44,13 +46,16 @@ class Config(object):
         all_cids = list(self.df['channelId'].unique())
         cid_lists = [all_cids[i:i + 50] for i in range(0, len(all_cids), 50)]
         for idx, cids in enumerate(cid_lists):
-            logging.info('Getting channel batch:'
-                         '{} of {}.'.format(idx + 1, len(all_cids)))
+            logging.info('Getting channel batch: '
+                         '{} of {}.'.format(idx + 1, len(cid_lists)))
             tdf = api.get_channel_data(cids)
             df = df.append(tdf, ignore_index=True)
         df.columns = ['channel{}'.format(x) for x in df.columns]
         self.df = self.df.merge(df, how='left', left_on='channelId',
                                 right_on='channelid')
+        self.df['channeleventdate'] = dt.datetime.today().date()
+        self.df['channelurl'] = ('https://www.youtube.com/channel/' +
+                                 self.df['channelId'])
         utl.write_df(self.df, 'sponsored_videos.xlsx')
         return self.df
 

@@ -1,11 +1,14 @@
 import os
+import logging
+
 config_path = 'config/'
 
 
 def write_df(df, file_name, file_path=None):
     if file_path:
-        full_file
+        file_name = os.path.join(file_path, file_name)
     df.to_excel(file_name, index=False)
+    logging.info('Successfully wrote to {}.'.format(file_name))
 
 
 def df_filter_by_word(df, cols, word, inverse=False):
