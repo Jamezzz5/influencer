@@ -144,8 +144,6 @@ class DBUpload(object):
 
     def add_ids_to_df(self, id_config, sliced_df):
         for id_table in id_config:
-            if id_table == exc.upload_tbl:
-                continue
             df_rds = self.format_and_read_rds(id_table, id_config, sliced_df)
             sliced_df = sliced_df.merge(df_rds, how='outer', on=self.name)
             sliced_df = sliced_df.drop(self.name, axis=1)
