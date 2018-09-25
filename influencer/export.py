@@ -2,12 +2,13 @@ import os
 import sys
 import math
 import json
+import time
 import logging
 import numpy as np
 import pandas as pd
 import datetime as dt
+import sqlalchemy as sqa
 from io import BytesIO
-from sqlalchemy import create_engine
 import influencer.utils as utl
 import influencer.expcolumns as exc
 
@@ -218,12 +219,16 @@ class DB(object):
 
     def connect(self):
         logging.debug('Connecting to DB at Host: {}'.format(self.host))
-        self.engine = create_engine(self.conn_string,
-                                    connect_args={'sslmode': 'prefer'})
+        self.engine = sqa.create_engine(self.conn_string,
+                                        connect_args={'sslmode': 'prefer'})
         try:
             self.connection = self.engine.raw_connection()
         except AssertionError:
             self.connection = self.engine.raw_connection()
+        except sqa.exc.OperationalError:
+            logging.warning('Connection timed out. Reconnecting in 30s.')
+            time.sleep(30)
+            self.connect()
         self.cursor = self.connection.cursor()
 
     def df_to_output(self, df):
