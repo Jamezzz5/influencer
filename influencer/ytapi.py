@@ -1,8 +1,10 @@
 import sys
 import json
+import time
 import logging
-import datetime as dt
+import requests
 import pandas as pd
+import datetime as dt
 import influencer.utils as utl
 from requests_oauthlib import OAuth2Session
 
@@ -72,8 +74,18 @@ class YtApi(object):
         extra = {'client_id': self.client_id,
                  'client_secret': self.client_secret}
         self.client = OAuth2Session(self.client_id, token=token)
-        token = self.client.refresh_token(token_url=self.refresh_url, **extra)
+        token = self.get_token(token, extra)
         self.client = OAuth2Session(self.client_id, token=token)
+
+    def get_token(self, token, extra):
+        try:
+            token = self.client.refresh_token(token_url=self.refresh_url,
+                                              **extra)
+        except requests.exceptions.SSLError as e:
+            logging.warning('Warning SSLError as follows {}'.format(e))
+            time.sleep(30)
+            token = self.get_token(token, extra)
+        return token
 
     def make_request(self, url):
         self.get_client()
