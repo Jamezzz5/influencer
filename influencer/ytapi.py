@@ -89,7 +89,12 @@ class YtApi(object):
 
     def make_request(self, url):
         self.get_client()
-        self.r = self.client.get(url)
+        try:
+            self.r = self.client.get(url)
+        except requests.exceptions.SSLError as e:
+            logging.warning('Warning SSLError as follows {}'.format(e))
+            time.sleep(30)
+            self.r = self.make_request(url)
         return self.r
 
     @staticmethod
