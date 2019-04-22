@@ -165,6 +165,9 @@ class YtApi(object):
 
     @staticmethod
     def data_to_df(r, main_key, nested_fields):
+        if main_key not in r.json():
+            logging.warning('{} not in json.  '
+                            'json as follows: {}'.format(main_key, r.json()))
         data = r.json()[main_key]
         df = pd.DataFrame(data)
         for col in nested_fields:
