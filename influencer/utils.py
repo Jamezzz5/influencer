@@ -4,6 +4,9 @@ import logging
 config_path = 'config/'
 
 
+def dir_check():
+    pass
+
 def write_df(df, file_name, file_path=None):
     if file_path:
         file_name = os.path.join(file_path, file_name)

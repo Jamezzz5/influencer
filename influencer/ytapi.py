@@ -87,14 +87,19 @@ class YtApi(object):
             token = self.get_token(token, extra)
         return token
 
-    def make_request(self, url):
+    def make_request(self, url, resp_key=None):
         self.get_client()
         try:
             self.r = self.client.get(url)
         except requests.exceptions.SSLError as e:
             logging.warning('Warning SSLError as follows {}'.format(e))
             time.sleep(30)
-            self.r = self.make_request(url)
+            self.r = self.make_request(url, resp_key)
+        if resp_key and resp_key not in self.r.json():
+            logging.warning('{} not in response: '
+                            '{}'.format(resp_key, self.r.json()))
+            time.sleep(30)
+            self.r = self.make_request(url, resp_key)
         return self.r
 
     @staticmethod
@@ -152,7 +157,7 @@ class YtApi(object):
         vid_ids = list(df['videoId'])
         return vid_ids
 
-    def make_request_get_df(self, ids, base_url):
+    def make_request_get_df(self, ids, base_url=vid_base_url):
         full_url = self.create_yt_url(ids, base_url)
         self.r = self.make_request(full_url)
         df = self.data_to_df(self.r, 'items', ['statistics', 'snippet'])
@@ -171,6 +176,9 @@ class YtApi(object):
         data = r.json()[main_key]
         df = pd.DataFrame(data)
         for col in nested_fields:
+            if col not in df:
+                logging.warning('{} not in df columns {}.'.format(col, df.columns))
+                continue
             tdf = pd.DataFrame(list(df[col]))
             drop_cols = [x for x in df.columns if x in tdf.columns]
             if drop_cols:

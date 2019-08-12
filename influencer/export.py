@@ -1,5 +1,4 @@
 import os
-import io
 import sys
 import math
 import json
@@ -9,6 +8,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import sqlalchemy as sqa
+from io import BytesIO
 import influencer.utils as utl
 import influencer.expcolumns as exc
 
@@ -232,10 +232,7 @@ class DB(object):
         self.cursor = self.connection.cursor()
 
     def df_to_output(self, df):
-        if sys.version_info[0] == 3:
-            self.output = io.StringIO()
-        else:
-            self.output = io.BytesIO()
+        self.output = BytesIO()
         df.to_csv(self.output, sep='\t', header=False, index=False,
                   encoding='utf-8')
         self.output.seek(0)
@@ -555,8 +552,7 @@ class DFTranslation(object):
             df[col] = df[col].replace(np.nan, 0)
             df[col] = df[col].astype(float)
         if data_type == 'DATE':
-            df[col] = df[col].apply(lambda x: pd.to_datetime(x, unit='D',
-                                                             errors='coerce'))
+            df[col] = pd.to_datetime(df[col], errors='coerce')
             df[col] = df[col].replace(pd.NaT, None)
             df[col] = df[col].replace(pd.NaT, dt.datetime.today())
         if data_type == 'INT':

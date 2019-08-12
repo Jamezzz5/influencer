@@ -9,13 +9,16 @@ config_path = utl.config_path
 
 
 class Config(object):
-    def __init__(self, config_file='config.xlsx'):
+    def __init__(self, sponsor_filter=True, append=False, config_file='config.xlsx'):
         logging.info('Initializing config file {}'.format(config_file))
+        self.sponsor_filter = sponsor_filter
+        self.append = append
         self.sd = 'StartDate'
         self.ed = 'EndDate'
         self.query = 'Query'
         self.game = 'Game'
         self.publisher = 'Publisher'
+        self.url = 'Url'
         self.df = pd.DataFrame()
         self.full_config_path = config_path + config_file
         self.config = pd.read_excel(self.full_config_path)
@@ -28,16 +31,26 @@ class Config(object):
 
     def get_videos(self, api):
         for k, v in self.config.items():
-            logging.info('Getting videos for the following query: {}'
-                         .format(v))
-            tdf = api.get_video_data(sd=v[self.sd], ed=v[self.ed],
-                                     query=v[self.query])
+            logging.info('Getting video {}'.format(v))
+            if 'Url' in v and v['Url']:
+                video_id = v['Url'].split('watch?v=')[1]
+                tdf = api.make_request_get_df([video_id])
+            else:
+                tdf = api.get_video_data(sd=v[self.sd], ed=v[self.ed],
+                                         query=v[self.query])
             for col in [self.game, self.publisher]:
                 tdf[col] = v[col]
             self.df = self.df.append(tdf).reset_index(drop=True)
+        self.df['videoeventdate'] = dt.datetime.today()
+        if self.append:
+            try:
+                df = pd.read_excel('raw_videos.xlsx')
+            except FileNotFoundError:
+                df = pd.DataFrame()
+            self.df = df.append(self.df, ignore_index=True)
         utl.write_df(self.df, 'raw_videos.xlsx')
-        self.df = self.filter_by_sponsored_videos('raw_videos.xlsx', self.df)
-        self.df['videoeventdate'] = dt.datetime.today().date()
+        if self.sponsor_filter:
+            self.df = self.filter_by_sponsored_videos('raw_videos.xlsx', self.df)
         utl.write_df(self.df, 'sponsored_videos.xlsx')
         return self.df
 
@@ -53,7 +66,7 @@ class Config(object):
         df.columns = ['channel{}'.format(x) for x in df.columns]
         self.df = self.df.merge(df, how='left', left_on='channelId',
                                 right_on='channelid')
-        self.df['channeleventdate'] = dt.datetime.today().date()
+        self.df['channeleventdate'] = dt.datetime.today()
         self.df['channelurl'] = ('https://www.youtube.com/channel/' +
                                  self.df['channelId'])
         utl.write_df(self.df, 'sponsored_videos.xlsx')
