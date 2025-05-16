@@ -40,14 +40,14 @@ class Config(object):
                                          query=v[self.query])
             for col in [self.game, self.publisher]:
                 tdf[col] = v[col]
-            self.df = self.df.append(tdf).reset_index(drop=True)
+            self.df = pd.concat([self.df, tdf], ignore_index=True)
         self.df['videoeventdate'] = dt.datetime.today()
         if self.append:
             try:
                 df = pd.read_excel('raw_videos.xlsx')
             except FileNotFoundError:
                 df = pd.DataFrame()
-            self.df = df.append(self.df, ignore_index=True)
+            self.df = pd.concat([df, self.df], ignore_index=True)
         utl.write_df(self.df, 'raw_videos.xlsx')
         if self.sponsor_filter:
             self.df = self.filter_by_sponsored_videos('raw_videos.xlsx', self.df)
@@ -62,7 +62,7 @@ class Config(object):
             logging.info('Getting channel batch: '
                          '{} of {}.'.format(idx + 1, len(cid_lists)))
             tdf = api.get_channel_data(cids)
-            df = df.append(tdf, ignore_index=True)
+            df = pd.concat([df, tdf], ignore_index=True)
         df.columns = ['channel{}'.format(x) for x in df.columns]
         self.df = self.df.merge(df, how='left', left_on='channelId',
                                 right_on='channelid')
